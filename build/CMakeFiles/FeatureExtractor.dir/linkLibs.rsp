@@ -1,0 +1,1 @@
+ -L C:/msys64/ucrt64/lib -lwx_mswu_core-3.2 -lwx_baseu-3.2 -mwindows -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 

@@ -1,0 +1,3 @@
+"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\FeatureExtractor.dir/objects.a
+C:\msys64\ucrt64\bin\ar.exe qc CMakeFiles\FeatureExtractor.dir/objects.a @CMakeFiles\FeatureExtractor.dir\objects1.rsp
+C:\msys64\ucrt64\bin\g++.exe -mwindows -Wl,--whole-archive CMakeFiles\FeatureExtractor.dir/objects.a -Wl,--no-whole-archive -o FeatureExtractor.exe -Wl,--out-implib,libFeatureExtractor.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\FeatureExtractor.dir\linkLibs.rsp
