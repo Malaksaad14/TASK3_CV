@@ -147,4 +147,4 @@ std::vector<KeyPoint> HarrisDetector::NonMaximumSuppression(const Matrix2D& resp
     });
     
     return keypoints;
-}
+} 

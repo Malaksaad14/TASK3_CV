@@ -31,7 +31,7 @@ std::vector<SiftDescriptor> SiftDetector::ExtractFeatures(const Matrix2D& img) {
     
     // 3. Find Extrema in DoG (only the middle layer index 1 can have 3x3x3 neighbors)
     std::vector<KeyPoint> keypoints;
-    float threshold = 8.0f; // Increased to 8.0 since pixels are 0-255 (filters low contrast noise)
+    float threshold = 4.0f; // Decreased from 8.0 to allow more descriptors to pass
     int gIndexForTesting = 1; // dogs[1]
     
     for (int y = 1; y < img.height - 1; ++y) {
