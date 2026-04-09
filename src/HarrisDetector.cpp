@@ -26,24 +26,30 @@ void HarrisDetector::ComputeGradientsAndProducts(
     const Matrix2D& img,
     Matrix2D& Ix2, Matrix2D& Iy2, Matrix2D& Ixy) {
     
-    Matrix2D sobelX = GetSobelX();
-    Matrix2D sobelY = GetSobelY();
+    // Sobel filters are separable:
+    // Sobel X = [1, 2, 1]^T * [-1, 0, 1]
+    std::vector<float> kernelX_h = {-1.0f, 0.0f, 1.0f};
+    std::vector<float> kernelX_v = {1.0f, 2.0f, 1.0f};
     
-    Matrix2D Ix = Convolve(img, sobelX, PaddingMode::REPLICATE);
-    Matrix2D Iy = Convolve(img, sobelY, PaddingMode::REPLICATE);
+    // Sobel Y = [-1, 0, 1]^T * [1, 2, 1]
+    std::vector<float> kernelY_h = {1.0f, 2.0f, 1.0f};
+    std::vector<float> kernelY_v = {-1.0f, 0.0f, 1.0f};
     
-    Ix2 = Matrix2D(img.width, img.height);
-    Iy2 = Matrix2D(img.width, img.height);
-    Ixy = Matrix2D(img.width, img.height);
+    Matrix2D Ix = ConvolveSeparable(img, kernelX_h, kernelX_v, PaddingMode::REPLICATE);
+    Matrix2D Iy = ConvolveSeparable(img, kernelY_h, kernelY_v, PaddingMode::REPLICATE);
     
-    for (int y = 0; y < img.height; ++y) {
-        for (int x = 0; x < img.width; ++x) {
-            float ix = Ix.at(x, y);
-            float iy = Iy.at(x, y);
-            Ix2.at(x, y) = ix * ix;
-            Iy2.at(x, y) = iy * iy;
-            Ixy.at(x, y) = ix * iy;
-        }
+    int w = img.width;
+    int h = img.height;
+    Ix2 = Matrix2D(w, h);
+    Iy2 = Matrix2D(w, h);
+    Ixy = Matrix2D(w, h);
+    
+    for (int i = 0; i < w * h; ++i) {
+        float ix = Ix.data[i];
+        float iy = Iy.data[i];
+        Ix2.data[i] = ix * ix;
+        Iy2.data[i] = iy * iy;
+        Ixy.data[i] = ix * iy;
     }
 }
 
@@ -51,26 +57,22 @@ std::vector<KeyPoint> HarrisDetector::DetectHarris(const Matrix2D& img, float k,
     Matrix2D Ix2, Iy2, Ixy;
     ComputeGradientsAndProducts(img, Ix2, Iy2, Ixy);
     
-    // Apply Gaussian blur (sigma = 1.0 or 1.5)
-    Matrix2D gaussKernel = GetGaussianKernel(1.0f);
-    Matrix2D Sxx = Convolve(Ix2, gaussKernel);
-    Matrix2D Syy = Convolve(Iy2, gaussKernel);
-    Matrix2D Sxy = Convolve(Ixy, gaussKernel);
+    // Apply Gaussian blur (sigma = 1.0)
+    std::vector<float> gauss1D = GetGaussianKernel1D(1.0f);
+    Matrix2D Sxx = ConvolveSeparable(Ix2, gauss1D, gauss1D);
+    Matrix2D Syy = ConvolveSeparable(Iy2, gauss1D, gauss1D);
+    Matrix2D Sxy = ConvolveSeparable(Ixy, gauss1D, gauss1D);
     
     Matrix2D responseMap(img.width, img.height);
     
-    for (int y = 0; y < img.height; ++y) {
-        for (int x = 0; x < img.width; ++x) {
-            float sxx = Sxx.at(x, y);
-            float syy = Syy.at(x, y);
-            float sxy = Sxy.at(x, y);
-            
-            float det = sxx * syy - sxy * sxy;
-            float trace = sxx + syy;
-            float r = det - k * trace * trace;
-            
-            responseMap.at(x, y) = r;
-        }
+    for (int i = 0; i < img.width * img.height; ++i) {
+        float sxx = Sxx.data[i];
+        float syy = Syy.data[i];
+        float sxy = Sxy.data[i];
+        
+        float det = sxx * syy - sxy * sxy;
+        float trace = sxx + syy;
+        responseMap.data[i] = det - k * trace * trace;
     }
     
     return NonMaximumSuppression(responseMap, threshold, nmsRadius);
@@ -80,35 +82,28 @@ std::vector<KeyPoint> HarrisDetector::DetectLambdaMinus(const Matrix2D& img, flo
     Matrix2D Ix2, Iy2, Ixy;
     ComputeGradientsAndProducts(img, Ix2, Iy2, Ixy);
     
-    Matrix2D gaussKernel = GetGaussianKernel(1.0f);
-    Matrix2D Sxx = Convolve(Ix2, gaussKernel);
-    Matrix2D Syy = Convolve(Iy2, gaussKernel);
-    Matrix2D Sxy = Convolve(Ixy, gaussKernel);
+    std::vector<float> gauss1D = GetGaussianKernel1D(1.0f);
+    Matrix2D Sxx = ConvolveSeparable(Ix2, gauss1D, gauss1D);
+    Matrix2D Syy = ConvolveSeparable(Iy2, gauss1D, gauss1D);
+    Matrix2D Sxy = ConvolveSeparable(Ixy, gauss1D, gauss1D);
     
     Matrix2D responseMap(img.width, img.height);
     
-    for (int y = 0; y < img.height; ++y) {
-        for (int x = 0; x < img.width; ++x) {
-            float sxx = Sxx.at(x, y);
-            float syy = Syy.at(x, y);
-            float sxy = Sxy.at(x, y);
-            
-            // Eigenvalues of matrix:
-            // [ sxx  sxy ]
-            // [ sxy  syy ]
-            // Characteristic equation: lambda^2 - (sxx+syy)lambda + (sxx*syy - sxy^2) = 0
-            float trace = sxx + syy;
-            float det = sxx * syy - sxy * sxy;
-            
-            // lambda_m = (trace - sqrt(trace^2 - 4*det)) / 2
-            float inner = trace * trace - 4 * det;
-            float lambda_min = 0.0f;
-            if (inner >= 0.0f) {
-                lambda_min = (trace - std::sqrt(inner)) / 2.0f;
-            }
-            
-            responseMap.at(x, y) = lambda_min;
+    for (int i = 0; i < img.width * img.height; ++i) {
+        float sxx = Sxx.data[i];
+        float syy = Syy.data[i];
+        float sxy = Sxy.data[i];
+        
+        float trace = sxx + syy;
+        float det = sxx * syy - sxy * sxy;
+        
+        float inner = trace * trace - 4 * det;
+        float lambda_min = 0.0f;
+        if (inner >= 0.0f) {
+            lambda_min = (trace - std::sqrt(inner)) / 2.0f;
         }
+        
+        responseMap.data[i] = lambda_min;
     }
     
     return NonMaximumSuppression(responseMap, threshold, nmsRadius);

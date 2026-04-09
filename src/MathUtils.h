@@ -29,9 +29,11 @@ namespace MathUtils {
 
     // Fundamental Operations
     Matrix2D Convolve(const Matrix2D& input, const Matrix2D& kernel, PaddingMode padMode = PaddingMode::REPLICATE);
+    Matrix2D ConvolveSeparable(const Matrix2D& input, const std::vector<float>& hKernel, const std::vector<float>& vKernel, PaddingMode padMode = PaddingMode::REPLICATE);
 
     // Filter Kernels
     Matrix2D GetGaussianKernel(float sigma);
+    std::vector<float> GetGaussianKernel1D(float sigma);
     Matrix2D GetSobelX();
     Matrix2D GetSobelY();
 

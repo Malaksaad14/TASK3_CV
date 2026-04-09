@@ -25,6 +25,12 @@ private:
     wxButton* m_btnLambda;
     wxButton* m_btnSift;
     wxStaticText* m_lblStatus;
+    
+    wxStaticText* m_lblHarrisThresh;
+    wxSlider* m_sldHarrisThreshold;
+    wxStaticText* m_lblLambdaThresh;
+    wxSlider* m_sldLambdaThreshold;
+    
     wxPanel* m_imagePanel;
 
     wxDECLARE_EVENT_TABLE();

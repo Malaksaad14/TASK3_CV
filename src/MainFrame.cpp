@@ -25,11 +25,34 @@ MainFrame::MainFrame(const wxString& title)
     m_btnSift = new wxButton(controlPanel, 1004, "SIFT Extract");
     m_lblStatus = new wxStaticText(controlPanel, wxID_ANY, "Time: N/A");
     
+    // Sliders for thresholds
+    m_lblHarrisThresh = new wxStaticText(controlPanel, wxID_ANY, "Harris Thresh: 5M");
+    m_sldHarrisThreshold = new wxSlider(controlPanel, wxID_ANY, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+    
+    m_lblLambdaThresh = new wxStaticText(controlPanel, wxID_ANY, "Lambda Thresh: 5k");
+    m_sldLambdaThreshold = new wxSlider(controlPanel, wxID_ANY, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+    
     controlSizer->Add(m_btnLoad, 0, wxALL | wxEXPAND, 5);
     controlSizer->Add(m_btnHarris, 0, wxALL | wxEXPAND, 5);
+    controlSizer->Add(m_lblHarrisThresh, 0, wxLEFT | wxRIGHT | wxTOP, 5);
+    controlSizer->Add(m_sldHarrisThreshold, 0, wxALL | wxEXPAND, 5);
+    
     controlSizer->Add(m_btnLambda, 0, wxALL | wxEXPAND, 5);
+    controlSizer->Add(m_lblLambdaThresh, 0, wxLEFT | wxRIGHT | wxTOP, 5);
+    controlSizer->Add(m_sldLambdaThreshold, 0, wxALL | wxEXPAND, 5);
+    
     controlSizer->Add(m_btnSift, 0, wxALL | wxEXPAND, 5);
     controlSizer->Add(m_lblStatus, 0, wxALL | wxEXPAND, 5);
+
+    // Bind slider events
+    m_sldHarrisThreshold->Bind(wxEVT_SLIDER, [this](wxCommandEvent& e) {
+        float val = e.GetInt() * 100000.0f;
+        m_lblHarrisThresh->SetLabel(wxString::Format("Harris Thresh: %.1fM", val / 1000000.0f));
+    });
+    m_sldLambdaThreshold->Bind(wxEVT_SLIDER, [this](wxCommandEvent& e) {
+        float val = e.GetInt() * 100.0f;
+        m_lblLambdaThresh->SetLabel(wxString::Format("Lambda Thresh: %.1fk", val / 1000.0f));
+    });
     
     controlPanel->SetSizer(controlSizer);
     
@@ -75,8 +98,8 @@ void MainFrame::OnHarrisDetect(wxCommandEvent& event) {
     // Convert wxImage RGB to MathUtils Grayscale natively
     MathUtils::Matrix2D gray = HarrisDetector::ConvertToGrayMatrix(m_originalImage.GetData(), w, h, 3);
     float k = 0.04f;
-    float threshold = 5000000.0f; // Increased threshold to reduce weak corners
-    std::vector<KeyPoint> keypoints = HarrisDetector::DetectHarris(gray, k, threshold, 0, 5); // NMS radius = 5 to separate points
+    float threshold = m_sldHarrisThreshold->GetValue() * 100000.0f; 
+    std::vector<KeyPoint> keypoints = HarrisDetector::DetectHarris(gray, k, threshold, 0, 5); 
     
     auto t2 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
@@ -117,8 +140,8 @@ void MainFrame::OnLambdaMinusDetect(wxCommandEvent& event) {
     int h = m_originalImage.GetHeight();
     
     MathUtils::Matrix2D gray = HarrisDetector::ConvertToGrayMatrix(m_originalImage.GetData(), w, h, 3);
-    float threshold = 5000.0f; // Lowered significantly from 60000 - relies on NMS radius=5 to spread corners
-    std::vector<KeyPoint> keypoints = HarrisDetector::DetectLambdaMinus(gray, threshold, 0, 5); // NMS radius = 5 to separate points
+    float threshold = m_sldLambdaThreshold->GetValue() * 100.0f;
+    std::vector<KeyPoint> keypoints = HarrisDetector::DetectLambdaMinus(gray, threshold, 0, 5); 
     
     auto t2 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
