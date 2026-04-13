@@ -1,6 +1,7 @@
 #include "SiftDetector.h"
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 using namespace MathUtils;
 
@@ -153,4 +154,111 @@ std::vector<SiftDescriptor> SiftDetector::ExtractDescriptorsForPoints(const Matr
     }
     
     return descriptors;
+}
+
+std::vector<MatchPair> SiftDetector::MatchDescriptorsSSD(const std::vector<SiftDescriptor>& set1, const std::vector<SiftDescriptor>& set2) {
+    std::vector<MatchPair> matches;
+    if (set1.empty() || set2.empty()) {
+        return matches;
+    }
+
+    matches.reserve(set1.size());
+    for (size_t i = 0; i < set1.size(); ++i) {
+        const auto& d1 = set1[i].descriptor;
+        float bestDist = std::numeric_limits<float>::max();
+        int bestIdx = -1;
+
+        for (size_t j = 0; j < set2.size(); ++j) {
+            const auto& d2 = set2[j].descriptor;
+            if (d1.size() != d2.size() || d1.empty()) continue;
+
+            float dot = 0.0f;
+            for (size_t k = 0; k < d1.size(); ++k) {
+                dot += d1[k] * d2[k];
+            }
+            float ssd = 2.0f - 2.0f * dot;
+
+            if (ssd < bestDist) {
+                bestDist = ssd;
+                bestIdx = static_cast<int>(j);
+            }
+        }
+
+        if (bestIdx >= 0) {
+            matches.emplace_back(static_cast<int>(i), bestIdx, bestDist);
+        }
+    }
+
+    return matches;
+}
+
+std::vector<MatchPair> SiftDetector::MatchDescriptorsNCC(const std::vector<SiftDescriptor>& set1, const std::vector<SiftDescriptor>& set2) {
+    std::vector<MatchPair> matches;
+    if (set1.empty() || set2.empty()) {
+        return matches;
+    }
+
+    struct CenteredDescriptor {
+        std::vector<float> centered;
+        float invNorm;
+    };
+
+    std::vector<CenteredDescriptor> centered1(set1.size());
+    std::vector<CenteredDescriptor> centered2(set2.size());
+
+    auto prepareCentered = [](const SiftDescriptor& src, CenteredDescriptor& out) {
+        const auto& d = src.descriptor;
+        out.centered.assign(d.size(), 0.0f);
+        if (d.empty()) {
+            out.invNorm = 0.0f;
+            return;
+        }
+
+        float mean = 0.0f;
+        for (float v : d) mean += v;
+        mean /= static_cast<float>(d.size());
+
+        float normSq = 0.0f;
+        for (size_t i = 0; i < d.size(); ++i) {
+            float c = d[i] - mean;
+            out.centered[i] = c;
+            normSq += c * c;
+        }
+        out.invNorm = (normSq > 1e-8f) ? (1.0f / std::sqrt(normSq)) : 0.0f;
+    };
+
+    for (size_t i = 0; i < set1.size(); ++i) prepareCentered(set1[i], centered1[i]);
+    for (size_t i = 0; i < set2.size(); ++i) prepareCentered(set2[i], centered2[i]);
+
+    matches.reserve(set1.size());
+    for (size_t i = 0; i < set1.size(); ++i) {
+        const auto& c1 = centered1[i];
+        float bestCorr = -std::numeric_limits<float>::max();
+        int bestIdx = -1;
+
+        for (size_t j = 0; j < set2.size(); ++j) {
+            const auto& c2 = centered2[j];
+            if (c1.centered.size() != c2.centered.size() || c1.centered.empty()) continue;
+
+            float corr = -1.0f;
+            if (c1.invNorm > 0.0f && c2.invNorm > 0.0f) {
+                float dot = 0.0f;
+                for (size_t k = 0; k < c1.centered.size(); ++k) {
+                    dot += c1.centered[k] * c2.centered[k];
+                }
+                corr = dot * c1.invNorm * c2.invNorm;
+            }
+
+            if (corr > bestCorr) {
+                bestCorr = corr;
+                bestIdx = static_cast<int>(j);
+            }
+        }
+
+        if (bestIdx >= 0) {
+            matches.emplace_back(static_cast<int>(i), bestIdx, bestCorr);
+        }
+    }
+
+    return matches;
 }
