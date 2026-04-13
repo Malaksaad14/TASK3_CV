@@ -641,9 +641,9 @@ CMakeFiles/FeatureExtractor.dir/src/MainFrame.cpp.obj: \
  C:/msys64/ucrt64/include/wx-3.2/wx/msw/filedlg.h \
  C:/msys64/ucrt64/include/wx-3.2/wx/mdi.h \
  C:/msys64/ucrt64/include/wx-3.2/wx/msw/mdi.h \
- C:\Users\ahmed\Desktop\TASK3_CV\src\HarrisDetector.h \
- C:\Users\ahmed\Desktop\TASK3_CV\src\MathUtils.h \
  C:\Users\ahmed\Desktop\TASK3_CV\src\SiftDetector.h \
+ C:\Users\ahmed\Desktop\TASK3_CV\src\MathUtils.h \
+ C:\Users\ahmed\Desktop\TASK3_CV\src\HarrisDetector.h \
  C:/msys64/ucrt64/include/c++/14.2.0/chrono \
  C:/msys64/ucrt64/include/c++/14.2.0/bits/chrono.h \
  C:/msys64/ucrt64/include/c++/14.2.0/ratio \

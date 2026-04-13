@@ -641,4 +641,7 @@ CMakeFiles/FeatureExtractor.dir/src/MainApp.cpp.obj: \
  C:/msys64/ucrt64/include/wx-3.2/wx/msw/filedlg.h \
  C:/msys64/ucrt64/include/wx-3.2/wx/mdi.h \
  C:/msys64/ucrt64/include/wx-3.2/wx/msw/mdi.h \
- C:\Users\ahmed\Desktop\TASK3_CV\src\MainFrame.h
+ C:\Users\ahmed\Desktop\TASK3_CV\src\MainFrame.h \
+ C:\Users\ahmed\Desktop\TASK3_CV\src\SiftDetector.h \
+ C:\Users\ahmed\Desktop\TASK3_CV\src\MathUtils.h \
+ C:\Users\ahmed\Desktop\TASK3_CV\src\HarrisDetector.h

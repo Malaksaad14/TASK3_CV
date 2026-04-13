@@ -32,6 +32,11 @@ private:
     wxButton* m_btnSift;
     wxButton* m_btnMatch;
     wxStaticText* m_lblStatus;
+    wxStaticText* m_lblHarrisResults;
+    wxStaticText* m_lblLambdaResults;
+    wxStaticText* m_lblSiftResults;
+    wxStaticText* m_lblSSDResults;
+    wxStaticText* m_lblNCCResults;
     wxStaticText* m_lblTips;
     
     wxStaticText* m_lblHarrisThresh;
@@ -43,6 +48,8 @@ private:
 
     std::vector<SiftDescriptor> m_descImage1;
     std::vector<SiftDescriptor> m_descImage2;
+    std::vector<MatchPair> m_ssdMatches;
+    std::vector<MatchPair> m_nccMatches;
     bool m_desc1Dirty = true;
     bool m_desc2Dirty = true;
 

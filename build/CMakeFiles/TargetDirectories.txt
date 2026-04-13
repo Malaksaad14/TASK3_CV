@@ -1,3 +1,3 @@
-G:/ali/dsp/TASK3_CV/build/CMakeFiles/FeatureExtractor.dir
-G:/ali/dsp/TASK3_CV/build/CMakeFiles/edit_cache.dir
-G:/ali/dsp/TASK3_CV/build/CMakeFiles/rebuild_cache.dir
+C:/Users/ahmed/Desktop/TASK3_CV/build/CMakeFiles/FeatureExtractor.dir
+C:/Users/ahmed/Desktop/TASK3_CV/build/CMakeFiles/edit_cache.dir
+C:/Users/ahmed/Desktop/TASK3_CV/build/CMakeFiles/rebuild_cache.dir

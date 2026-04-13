@@ -29,7 +29,12 @@ MainFrame::MainFrame(const wxString& title)
     m_btnSift = new wxButton(controlPanel, 1004, "SIFT Extract");
     m_btnMatch = new wxButton(controlPanel, 1006, "Match Set (SSD + NCC)");
     m_lblStatus = new wxStaticText(controlPanel, wxID_ANY, "Ready");
-    m_lblTips = new wxStaticText(controlPanel, wxID_ANY, "Load Image 1 + 2 first,\nthen run matching.");
+    m_lblHarrisResults = new wxStaticText(controlPanel, wxID_ANY, "Harris: -");
+    m_lblLambdaResults = new wxStaticText(controlPanel, wxID_ANY, "Lambda-: -");
+    m_lblSiftResults = new wxStaticText(controlPanel, wxID_ANY, "SIFT: -");
+    m_lblSSDResults = new wxStaticText(controlPanel, wxID_ANY, "SSD: -");
+    m_lblNCCResults = new wxStaticText(controlPanel, wxID_ANY, "NCC: -");
+    m_lblTips = new wxStaticText(controlPanel, wxID_ANY, "Tip: To verify correctness,\nload the same image twice.");
     m_lblStatus->SetForegroundColour(wxColour(32, 44, 70));
     m_lblTips->SetForegroundColour(wxColour(75, 95, 130));
     wxFont statusFont = m_lblStatus->GetFont();
@@ -71,11 +76,18 @@ MainFrame::MainFrame(const wxString& title)
     extractionSizer->Add(m_lblLambdaThresh, 0, wxLEFT | wxRIGHT | wxTOP, 6);
     extractionSizer->Add(m_sldLambdaThreshold, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 6);
     extractionSizer->Add(m_btnSift, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 6);
+    
+    // Add result labels to extraction sizer
+    extractionSizer->Add(m_lblHarrisResults, 0, wxLEFT | wxRIGHT | wxTOP, 6);
+    extractionSizer->Add(m_lblLambdaResults, 0, wxLEFT | wxRIGHT, 6);
+    extractionSizer->Add(m_lblSiftResults, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
 
     wxStaticBoxSizer* matchSizer = new wxStaticBoxSizer(wxVERTICAL, controlPanel, "Matching");
     matchSizer->GetStaticBox()->SetForegroundColour(wxColour(38, 67, 125));
     matchSizer->Add(m_btnMatch, 0, wxALL | wxEXPAND, 6);
-    matchSizer->Add(m_lblStatus, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 6);
+    matchSizer->Add(m_lblStatus, 0, wxLEFT | wxRIGHT | wxTOP | wxEXPAND, 6);
+    matchSizer->Add(m_lblSSDResults, 0, wxLEFT | wxRIGHT | wxEXPAND, 6);
+    matchSizer->Add(m_lblNCCResults, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 6);
 
     controlSizer->Add(loadSizer, 0, wxALL | wxEXPAND, 6);
     controlSizer->Add(extractionSizer, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 6);
@@ -132,10 +144,12 @@ void MainFrame::OnLoadImage2(wxCommandEvent& event) {
     if (openFileDialog.ShowModal() == wxID_CANCEL)
         return;
 
-    m_secondImage.LoadFile(openFileDialog.GetPath());
+        m_secondImage.LoadFile(openFileDialog.GetPath());
     if (m_secondImage.IsOk()) {
         m_desc2Dirty = true;
         m_descImage2.clear();
+        m_ssdMatches.clear();
+        m_nccMatches.clear();
         m_imagePanel->Refresh();
         m_lblStatus->SetLabel("Image 2 loaded.");
     }
@@ -182,7 +196,8 @@ void MainFrame::OnHarrisDetect(wxCommandEvent& event) {
     }
     
     UpdateDisplay(m_displayImage);
-    m_lblStatus->SetLabel(wxString::Format("Harris: %d pts, %.1f ms", (int)keypoints.size(), ms));
+    m_lblHarrisResults->SetLabel(wxString::Format("Harris: %d pts, %.1f ms", (int)keypoints.size(), ms));
+    m_lblStatus->SetLabel("Harris Detection Complete.");
 }
 
 void MainFrame::OnLambdaMinusDetect(wxCommandEvent& event) {
@@ -221,7 +236,8 @@ void MainFrame::OnLambdaMinusDetect(wxCommandEvent& event) {
     }
     
     UpdateDisplay(m_displayImage);
-    m_lblStatus->SetLabel(wxString::Format("Lambda-: %d pts, %.1f ms", (int)keypoints.size(), ms));
+    m_lblLambdaResults->SetLabel(wxString::Format("Lambda-: %d pts, %.1f ms", (int)keypoints.size(), ms));
+    m_lblStatus->SetLabel("Lambda- Detection Complete.");
 }
 
 void MainFrame::OnSiftExtract(wxCommandEvent& event) {
@@ -264,7 +280,8 @@ void MainFrame::OnSiftExtract(wxCommandEvent& event) {
     }
     
     UpdateDisplay(m_displayImage);
-    m_lblStatus->SetLabel(wxString::Format("SIFT: %d desc, %.1f ms", (int)descriptors.size(), ms));
+    m_lblSiftResults->SetLabel(wxString::Format("SIFT: %d desc, %.1f ms", (int)descriptors.size(), ms));
+    m_lblStatus->SetLabel("SIFT Extraction Complete.");
 }
 
 void MainFrame::OnMatchImageSet(wxCommandEvent& event) {
@@ -281,24 +298,26 @@ void MainFrame::OnMatchImageSet(wxCommandEvent& event) {
     auto tFeat2 = std::chrono::high_resolution_clock::now();
 
     auto tSSD1 = std::chrono::high_resolution_clock::now();
-    std::vector<MatchPair> ssdMatches = SiftDetector::MatchDescriptorsSSD(m_descImage1, m_descImage2);
+    m_ssdMatches = SiftDetector::MatchDescriptorsSSD(m_descImage1, m_descImage2);
     auto tSSD2 = std::chrono::high_resolution_clock::now();
 
     auto tNCC1 = std::chrono::high_resolution_clock::now();
-    std::vector<MatchPair> nccMatches = SiftDetector::MatchDescriptorsNCC(m_descImage1, m_descImage2);
+    m_nccMatches = SiftDetector::MatchDescriptorsNCC(m_descImage1, m_descImage2);
     auto tNCC2 = std::chrono::high_resolution_clock::now();
 
     double featMs = std::chrono::duration<double, std::milli>(tFeat2 - tFeat1).count();
     double ssdMs = std::chrono::duration<double, std::milli>(tSSD2 - tSSD1).count();
     double nccMs = std::chrono::duration<double, std::milli>(tNCC2 - tNCC1).count();
 
-    m_lblStatus->SetLabel(wxString::Format(
-        "Set match | D1:%d D2:%d | SSD:%d (%.1f ms) | NCC:%d (%.1f ms) | Feat:%.1f ms",
-        (int)m_descImage1.size(), (int)m_descImage2.size(),
-        (int)ssdMatches.size(), ssdMs,
-        (int)nccMatches.size(), nccMs,
-        featMs
-    ));
+    m_lblStatus->SetLabel(wxString::Format("Set match | D1:%d D2:%d", (int)m_descImage1.size(), (int)m_descImage2.size()));
+    m_lblSSDResults->SetLabel(wxString::Format("SSD: %d matches (%.1f ms)", (int)m_ssdMatches.size(), ssdMs));
+    m_lblNCCResults->SetLabel(wxString::Format("NCC: %d matches (%.1f ms)", (int)m_nccMatches.size(), nccMs));
+    
+    // Feature extraction time can go to tips or status append
+    m_lblTips->SetLabel(wxString::Format("Feat Extract: %.1f ms", featMs));
+    
+    this->Layout();
+    m_imagePanel->Refresh();
 }
 
 void MainFrame::EnsureDescriptorsReady() {
@@ -368,6 +387,36 @@ void MainFrame::OnPaint(wxPaintEvent& event) {
         int rightX = margin + cellW + gap;
         drawInCell(leftSource, leftX, "Image 1", wxColour(66, 115, 210));
         drawInCell(rightSource, rightX, "Image 2", wxColour(95, 172, 124));
+
+        // Draw matching lines
+        auto getPointInCell = [&](const SiftDescriptor& desc, int xOff, const wxImage& source) {
+            double scale = std::min((double)cellW / source.GetWidth(), (double)cellH / source.GetHeight());
+            int iW = (int)(source.GetWidth() * scale);
+            int iH = (int)(source.GetHeight() * scale);
+            int startX = xOff + (cellW - iW) / 2;
+            int startY = margin + (cellH - iH) / 2;
+            return wxPoint(startX + (int)(desc.x * scale), startY + (int)(desc.y * scale));
+        };
+
+        // Draw SSD matches in Red
+        dc.SetPen(wxPen(wxColour(255, 50, 50, 160), 1));
+        for (const auto& m : m_ssdMatches) {
+            if (m.idx1 < (int)m_descImage1.size() && m.idx2 < (int)m_descImage2.size()) {
+                wxPoint p1 = getPointInCell(m_descImage1[m.idx1], leftX, leftSource);
+                wxPoint p2 = getPointInCell(m_descImage2[m.idx2], rightX, rightSource);
+                dc.DrawLine(p1, p2);
+            }
+        }
+
+        // Draw NCC matches in Green (shifted down by 2 pixels to show SSD hits)
+        dc.SetPen(wxPen(wxColour(50, 200, 50, 180), 1));
+        for (const auto& m : m_nccMatches) {
+            if (m.idx1 < (int)m_descImage1.size() && m.idx2 < (int)m_descImage2.size()) {
+                wxPoint p1 = getPointInCell(m_descImage1[m.idx1], leftX, leftSource);
+                wxPoint p2 = getPointInCell(m_descImage2[m.idx2], rightX, rightSource);
+                dc.DrawLine(p1.x, p1.y + 2, p2.x, p2.y + 2);
+            }
+        }
     } else if (m_wxDisplayImage.IsOk()) {
         wxBitmap bmp(m_wxDisplayImage);
         int pW, pH;

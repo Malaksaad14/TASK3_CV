@@ -795,8 +795,11 @@ CMakeFiles/FeatureExtractor.dir/src/MainApp.cpp.obj: C:/Users/ahmed/Desktop/TASK
   C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/14.2.0/include/xsavesintrin.h \
   C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/14.2.0/include/xtestintrin.h \
   C:/msys64/ucrt64/lib/wx/include/msw-unicode-3.2/wx/setup.h \
+  C:/Users/ahmed/Desktop/TASK3_CV/src/HarrisDetector.h \
   C:/Users/ahmed/Desktop/TASK3_CV/src/MainApp.h \
-  C:/Users/ahmed/Desktop/TASK3_CV/src/MainFrame.h
+  C:/Users/ahmed/Desktop/TASK3_CV/src/MainFrame.h \
+  C:/Users/ahmed/Desktop/TASK3_CV/src/MathUtils.h \
+  C:/Users/ahmed/Desktop/TASK3_CV/src/SiftDetector.h
 
 CMakeFiles/FeatureExtractor.dir/src/MainFrame.cpp.obj: C:/Users/ahmed/Desktop/TASK3_CV/src/MainFrame.cpp \
   C:/msys64/ucrt64/include/_bsd_types.h \
