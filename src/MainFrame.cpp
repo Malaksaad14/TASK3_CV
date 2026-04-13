@@ -42,11 +42,13 @@ MainFrame::MainFrame(const wxString& title)
     m_lblStatus->SetFont(statusFont);
     
     // Sliders for thresholds
-    m_lblHarrisThresh = new wxStaticText(controlPanel, wxID_ANY, "Harris Thresh: 5M");
-    m_sldHarrisThreshold = new wxSlider(controlPanel, wxID_ANY, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+    // Harris: 1M per unit (1-100 = 1M to 100M). Default=10 → 10M
+    m_lblHarrisThresh = new wxStaticText(controlPanel, wxID_ANY, "Harris Thresh: 10M");
+    m_sldHarrisThreshold = new wxSlider(controlPanel, wxID_ANY, 10, 1, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
     
+    // Lambda: 1k per unit (1-100 = 1k to 100k). Default=5 → 5k
     m_lblLambdaThresh = new wxStaticText(controlPanel, wxID_ANY, "Lambda Thresh: 5k");
-    m_sldLambdaThreshold = new wxSlider(controlPanel, wxID_ANY, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+    m_sldLambdaThreshold = new wxSlider(controlPanel, wxID_ANY, 5, 1, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
     
     m_btnLoad1->SetBackgroundColour(wxColour(122, 181, 255));
     m_btnLoad1->SetForegroundColour(*wxWHITE);
@@ -96,12 +98,12 @@ MainFrame::MainFrame(const wxString& title)
 
     // Bind slider events
     m_sldHarrisThreshold->Bind(wxEVT_SLIDER, [this](wxCommandEvent& e) {
-        float val = e.GetInt() * 100000.0f;
-        m_lblHarrisThresh->SetLabel(wxString::Format("Harris Thresh: %.1fM", val / 1000000.0f));
+        float val = e.GetInt() * 1000000.0f;  // 1M per unit
+        m_lblHarrisThresh->SetLabel(wxString::Format("Harris Thresh: %.0fM", val / 1000000.0f));
     });
     m_sldLambdaThreshold->Bind(wxEVT_SLIDER, [this](wxCommandEvent& e) {
-        float val = e.GetInt() * 100.0f;
-        m_lblLambdaThresh->SetLabel(wxString::Format("Lambda Thresh: %.1fk", val / 1000.0f));
+        float val = e.GetInt() * 1000.0f;  // 1k per unit
+        m_lblLambdaThresh->SetLabel(wxString::Format("Lambda Thresh: %.0fk", val / 1000.0f));
     });
     
     controlPanel->SetSizer(controlSizer);
@@ -158,7 +160,6 @@ void MainFrame::OnLoadImage2(wxCommandEvent& event) {
 void MainFrame::OnHarrisDetect(wxCommandEvent& event) {
     if (!m_originalImage.IsOk()) return;
     
-    m_lblStatus->SetLabel("Running Harris...");
     this->Update();
     
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -169,8 +170,8 @@ void MainFrame::OnHarrisDetect(wxCommandEvent& event) {
     // Convert wxImage RGB to MathUtils Grayscale natively
     MathUtils::Matrix2D gray = HarrisDetector::ConvertToGrayMatrix(m_originalImage.GetData(), w, h, 3);
     float k = 0.04f;
-    float threshold = m_sldHarrisThreshold->GetValue() * 100000.0f; 
-    std::vector<KeyPoint> keypoints = HarrisDetector::DetectHarris(gray, k, threshold, 0, 5); 
+    float threshold = m_sldHarrisThreshold->GetValue() * 1000000.0f;  // 1M per unit
+    std::vector<KeyPoint> keypoints = HarrisDetector::DetectHarris(gray, k, threshold, 0, 5);
     
     auto t2 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
@@ -197,13 +198,11 @@ void MainFrame::OnHarrisDetect(wxCommandEvent& event) {
     
     UpdateDisplay(m_displayImage);
     m_lblHarrisResults->SetLabel(wxString::Format("Harris: %d pts, %.1f ms", (int)keypoints.size(), ms));
-    m_lblStatus->SetLabel("Harris Detection Complete.");
 }
 
 void MainFrame::OnLambdaMinusDetect(wxCommandEvent& event) {
     if (!m_originalImage.IsOk()) return;
     
-    m_lblStatus->SetLabel("Running Lambda-...");
     this->Update();
     
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -212,8 +211,8 @@ void MainFrame::OnLambdaMinusDetect(wxCommandEvent& event) {
     int h = m_originalImage.GetHeight();
     
     MathUtils::Matrix2D gray = HarrisDetector::ConvertToGrayMatrix(m_originalImage.GetData(), w, h, 3);
-    float threshold = m_sldLambdaThreshold->GetValue() * 100.0f;
-    std::vector<KeyPoint> keypoints = HarrisDetector::DetectLambdaMinus(gray, threshold, 0, 5); 
+    float threshold = m_sldLambdaThreshold->GetValue() * 1000.0f;  // 1k per unit
+    std::vector<KeyPoint> keypoints = HarrisDetector::DetectLambdaMinus(gray, threshold, 0, 5);
     
     auto t2 = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
@@ -237,13 +236,11 @@ void MainFrame::OnLambdaMinusDetect(wxCommandEvent& event) {
     
     UpdateDisplay(m_displayImage);
     m_lblLambdaResults->SetLabel(wxString::Format("Lambda-: %d pts, %.1f ms", (int)keypoints.size(), ms));
-    m_lblStatus->SetLabel("Lambda- Detection Complete.");
 }
 
 void MainFrame::OnSiftExtract(wxCommandEvent& event) {
     if (!m_originalImage.IsOk()) return;
     
-    m_lblStatus->SetLabel("Running SIFT Descriptor Extract...");
     this->Update();
     
     auto t1 = std::chrono::high_resolution_clock::now();
@@ -281,7 +278,6 @@ void MainFrame::OnSiftExtract(wxCommandEvent& event) {
     
     UpdateDisplay(m_displayImage);
     m_lblSiftResults->SetLabel(wxString::Format("SIFT: %d desc, %.1f ms", (int)descriptors.size(), ms));
-    m_lblStatus->SetLabel("SIFT Extraction Complete.");
 }
 
 void MainFrame::OnMatchImageSet(wxCommandEvent& event) {
