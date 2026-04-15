@@ -44,6 +44,9 @@ private:
     wxStaticText* m_lblLambdaThresh;
     wxSlider* m_sldLambdaThreshold;
     
+    wxCheckBox* m_chkShowSSD;
+    wxCheckBox* m_chkShowNCC;
+    
     wxPanel* m_imagePanel;
 
     std::vector<SiftDescriptor> m_descImage1;

@@ -87,6 +87,18 @@ MainFrame::MainFrame(const wxString& title)
     wxStaticBoxSizer* matchSizer = new wxStaticBoxSizer(wxVERTICAL, controlPanel, "Matching");
     matchSizer->GetStaticBox()->SetForegroundColour(wxColour(38, 67, 125));
     matchSizer->Add(m_btnMatch, 0, wxALL | wxEXPAND, 6);
+    
+    wxBoxSizer* chkSizer = new wxBoxSizer(wxHORIZONTAL);
+    m_chkShowSSD = new wxCheckBox(controlPanel, wxID_ANY, "Show SSD (Red)");
+    m_chkShowNCC = new wxCheckBox(controlPanel, wxID_ANY, "Show NCC (Green)");
+    m_chkShowSSD->SetValue(true);
+    m_chkShowNCC->SetValue(true);
+    m_chkShowSSD->SetForegroundColour(wxColour(200, 50, 50));
+    m_chkShowNCC->SetForegroundColour(wxColour(50, 150, 50));
+    chkSizer->Add(m_chkShowSSD, 1, wxALL, 2);
+    chkSizer->Add(m_chkShowNCC, 1, wxALL, 2);
+    matchSizer->Add(chkSizer, 0, wxLEFT | wxRIGHT, 6);
+
     matchSizer->Add(m_lblStatus, 0, wxLEFT | wxRIGHT | wxTOP | wxEXPAND, 6);
     matchSizer->Add(m_lblSSDResults, 0, wxLEFT | wxRIGHT | wxEXPAND, 6);
     matchSizer->Add(m_lblNCCResults, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 6);
@@ -105,6 +117,9 @@ MainFrame::MainFrame(const wxString& title)
         float val = e.GetInt() * 1000.0f;  // 1k per unit
         m_lblLambdaThresh->SetLabel(wxString::Format("Lambda Thresh: %.0fk", val / 1000.0f));
     });
+
+    m_chkShowSSD->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent& e) { m_imagePanel->Refresh(); });
+    m_chkShowNCC->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent& e) { m_imagePanel->Refresh(); });
     
     controlPanel->SetSizer(controlSizer);
     
@@ -397,22 +412,27 @@ void MainFrame::OnPaint(wxPaintEvent& event) {
         };
 
         // Draw SSD matches in Red
-        dc.SetPen(wxPen(wxColour(255, 50, 50, 160), 1));
-        for (const auto& m : m_ssdMatches) {
-            if (m.idx1 < (int)m_descImage1.size() && m.idx2 < (int)m_descImage2.size()) {
-                wxPoint p1 = getPointInCell(m_descImage1[m.idx1], leftX, leftSource);
-                wxPoint p2 = getPointInCell(m_descImage2[m.idx2], rightX, rightSource);
-                dc.DrawLine(p1, p2);
+        if (m_chkShowSSD->GetValue()) {
+            dc.SetPen(wxPen(wxColour(255, 50, 50, 160), 1));
+            for (const auto& m : m_ssdMatches) {
+                if (m.idx1 < (int)m_descImage1.size() && m.idx2 < (int)m_descImage2.size()) {
+                    wxPoint p1 = getPointInCell(m_descImage1[m.idx1], leftX, leftSource);
+                    wxPoint p2 = getPointInCell(m_descImage2[m.idx2], rightX, rightSource);
+                    dc.DrawLine(p1, p2);
+                }
             }
         }
 
-        // Draw NCC matches in Green (shifted down by 2 pixels to show SSD hits)
-        dc.SetPen(wxPen(wxColour(50, 200, 50, 180), 1));
-        for (const auto& m : m_nccMatches) {
-            if (m.idx1 < (int)m_descImage1.size() && m.idx2 < (int)m_descImage2.size()) {
-                wxPoint p1 = getPointInCell(m_descImage1[m.idx1], leftX, leftSource);
-                wxPoint p2 = getPointInCell(m_descImage2[m.idx2], rightX, rightSource);
-                dc.DrawLine(p1.x, p1.y + 2, p2.x, p2.y + 2);
+        // Draw NCC matches in Green
+        if (m_chkShowNCC->GetValue()) {
+            dc.SetPen(wxPen(wxColour(50, 200, 50, 180), 1));
+            for (const auto& m : m_nccMatches) {
+                if (m.idx1 < (int)m_descImage1.size() && m.idx2 < (int)m_descImage2.size()) {
+                    wxPoint p1 = getPointInCell(m_descImage1[m.idx1], leftX, leftSource);
+                    wxPoint p2 = getPointInCell(m_descImage2[m.idx2], rightX, rightSource);
+                    // No offset needed anymore if togglable, but kept a tiny one for overlap
+                    dc.DrawLine(p1.x, p1.y + (m_chkShowSSD->GetValue() ? 2 : 0), p2.x, p2.y + (m_chkShowSSD->GetValue() ? 2 : 0));
+                }
             }
         }
     } else if (m_wxDisplayImage.IsOk()) {

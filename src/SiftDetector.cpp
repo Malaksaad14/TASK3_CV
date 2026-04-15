@@ -79,47 +79,103 @@ std::vector<SiftDescriptor> SiftDetector::ExtractDescriptorsForPoints(const Matr
             ori.at(x, y) = std::atan2(dy, dx);
         }
     }
+
+    auto sampleLinear = [&](const Matrix2D& m, float x, float y) {
+        int x0 = (int)std::floor(x);
+        int y0 = (int)std::floor(y);
+        if (x0 < 0 || x0 >= m.width - 1 || y0 < 0 || y0 >= m.height - 1) return 0.0f;
+        float dx = x - x0;
+        float dy = y - y0;
+        return m.at(x0, y0) * (1.0f - dx) * (1.0f - dy) +
+               m.at(x0 + 1, y0) * dx * (1.0f - dy) +
+               m.at(x0, y0 + 1) * (1.0f - dx) * dy +
+               m.at(x0 + 1, y0 + 1) * dx * dy;
+    };
     
     for (const auto& kp : keypoints) {
         int cx = kp.x;
         int cy = kp.y;
         
+        // --- 1. ORIENTATION ASSIGNMENT ---
+        // Sample orientation in a neighborhood around the keypoint
+        std::vector<float> hist(36, 0.0f);
+        int radius = 8;
+        float sigma = 1.5f * 1.0f; // Simplified scale=1.0
+        
+        for (int dy = -radius; dy <= radius; ++dy) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                int nx = cx + dx;
+                int ny = cy + dy;
+                if (nx < 1 || nx >= gaussianImg.width - 1 || ny < 1 || ny >= gaussianImg.height - 1) continue;
+                
+                float weight = std::exp(-(dx*dx + dy*dy) / (2.0f * sigma * sigma));
+                float magnitude = mag.at(nx, ny);
+                float angle = ori.at(nx, ny);
+                if (angle < 0) angle += 2.0f * M_PI;
+                
+                int bin = (int)(angle / (2.0f * M_PI) * 36.0f) % 36;
+                hist[bin] += weight * magnitude;
+            }
+        }
+        
+        // Find peak orientation
+        float maxVal = 0;
+        int maxBin = 0;
+        for (int i = 0; i < 36; ++i) {
+            if (hist[i] > maxVal) {
+                maxVal = hist[i];
+                maxBin = i;
+            }
+        }
+        float dominantOri = (maxBin + 0.5f) * (2.0f * M_PI / 36.0f);
+        
+        // --- 2. DESCRIPTOR EXTRACTION (ROTATED) ---
         // Ensure 16x16 window fits
-        if (cx < 8 || cx >= gaussianImg.width - 8 || cy < 8 || cy >= gaussianImg.height - 8) {
+        if (cx < 10 || cx >= gaussianImg.width - 10 || cy < 10 || cy >= gaussianImg.height - 10) {
             continue;
         }
         
         SiftDescriptor desc;
         desc.x = cx;
         desc.y = cy;
+        desc.orientation = dominantOri;
         desc.descriptor.resize(128, 0.0f);
+        
+        float cosOri = std::cos(dominantOri);
+        float sinOri = std::sin(dominantOri);
         
         // Basic descriptor: 4x4 subregions, 8 orientation bins
         for (int r = 0; r < 4; ++r) {
             for (int c = 0; c < 4; ++c) {
-                int startY = cy - 8 + r * 4;
-                int startX = cx - 8 + c * 4;
-                
+                // Bin center in descriptor space (relative to cx, cy)
+                // Grid coordinates range from -8 to 8
                 std::vector<float> bins(8, 0.0f);
                 
-                for (int y = 0; y < 4; ++y) {
-                    for (int x = 0; x < 4; ++x) {
-                        float magnitude = mag.at(startX + x, startY + y);
-                        float angle = ori.at(startX + x, startY + y);
+                for (int subY = 0; subY < 4; ++subY) {
+                    for (int subX = 0; subX < 4; ++subX) {
+                        float relX = (c * 4 + subX) - 8.0f + 0.5f;
+                        float relY = (r * 4 + subY) - 8.0f + 0.5f;
                         
-                        // Convert angle [-pi, pi] to [0, 2pi]
-                        if (angle < 0) angle += 2.0f * M_PI;
+                        // Rotate coordinates
+                        float rotX = cx + (relX * cosOri - relY * sinOri);
+                        float rotY = cy + (relX * sinOri + relY * cosOri);
                         
-                        // Find bin
-                        float binFloat = (angle / (2.0f * M_PI)) * 8.0f;
-                        int bin = (int)(binFloat) % 8;
+                        float magnitude = sampleLinear(mag, rotX, rotY);
+                        float angle = sampleLinear(ori, rotX, rotY);
                         
-                        // Add weight (we'd use gaussian weight here in full SIFT, simplified for basic)
-                        bins[bin] += magnitude;
+                        // Adjust angle relative to dominant orientation
+                        angle -= dominantOri;
+                        while (angle < 0) angle += 2.0f * M_PI;
+                        while (angle >= 2.0f * M_PI) angle -= 2.0f * M_PI;
+                        
+                        int bin = (int)(angle / (2.0f * M_PI) * 8.0f) % 8;
+                        
+                        // Gaussian weighting for the descriptor window (8.0 sigma)
+                        float gWeight = std::exp(-(relX*relX + relY*relY) / (2.0f * 8.0f * 8.0f));
+                        bins[bin] += magnitude * gWeight;
                     }
                 }
                 
-                // Copy bins to vector
                 int blockIdx = (r * 4 + c) * 8;
                 for (int i = 0; i < 8; ++i) {
                     desc.descriptor[blockIdx + i] = bins[i];
@@ -127,29 +183,22 @@ std::vector<SiftDescriptor> SiftDetector::ExtractDescriptorsForPoints(const Matr
             }
         }
         
-        // Normalize the descriptor to handle illumination changes
+        // Normalize the descriptor
         float normSq = 0.0f;
-        for (float v : desc.descriptor) {
-            normSq += v * v;
-        }
+        for (float v : desc.descriptor) normSq += v * v;
         float norm = std::sqrt(normSq);
         if (norm > 1e-6f) {
             for (float& v : desc.descriptor) {
                 v /= norm;
-                // Cap to 0.2
                 if (v > 0.2f) v = 0.2f;
             }
-            // Renormalize
             normSq = 0.0f;
-            for (float v : desc.descriptor) {
-                normSq += v * v;
-            }
+            for (float v : desc.descriptor) normSq += v * v;
             norm = std::sqrt(normSq);
-            for (float& v : desc.descriptor) {
-                v /= norm;
+            if (norm > 1e-6f) {
+                for (float& v : desc.descriptor) v /= norm;
             }
         }
-        
         descriptors.push_back(desc);
     }
     
@@ -162,10 +211,13 @@ std::vector<MatchPair> SiftDetector::MatchDescriptorsSSD(const std::vector<SiftD
         return matches;
     }
 
-    matches.reserve(set1.size());
+    const float RATIO_THRESH_SQ = 0.36f; // 0.6 * 0.6
+    const size_t MAX_MATCHES = 15;
+
     for (size_t i = 0; i < set1.size(); ++i) {
         const auto& d1 = set1[i].descriptor;
-        float bestDist = std::numeric_limits<float>::max();
+        float bestDistSq = std::numeric_limits<float>::max();
+        float secondBestDistSq = std::numeric_limits<float>::max();
         int bestIdx = -1;
 
         for (size_t j = 0; j < set2.size(); ++j) {
@@ -177,16 +229,30 @@ std::vector<MatchPair> SiftDetector::MatchDescriptorsSSD(const std::vector<SiftD
                 dot += d1[k] * d2[k];
             }
             float ssd = 2.0f - 2.0f * dot;
+            if (ssd < 0) ssd = 0;
 
-            if (ssd < bestDist) {
-                bestDist = ssd;
+            if (ssd < bestDistSq) {
+                secondBestDistSq = bestDistSq;
+                bestDistSq = ssd;
                 bestIdx = static_cast<int>(j);
+            } else if (ssd < secondBestDistSq) {
+                secondBestDistSq = ssd;
             }
         }
 
-        if (bestIdx >= 0) {
-            matches.emplace_back(static_cast<int>(i), bestIdx, bestDist);
+        // Apply Lowe's Ratio Test
+        if (bestIdx >= 0 && bestDistSq < RATIO_THRESH_SQ * secondBestDistSq) {
+            matches.emplace_back(static_cast<int>(i), bestIdx, bestDistSq);
         }
+    }
+
+    // Sort by confidence (best distance first) and limit count
+    std::sort(matches.begin(), matches.end(), [](const MatchPair& a, const MatchPair& b) {
+        return a.score < b.score;
+    });
+    
+    if (matches.size() > MAX_MATCHES) {
+        matches.resize(MAX_MATCHES);
     }
 
     return matches;
@@ -197,6 +263,9 @@ std::vector<MatchPair> SiftDetector::MatchDescriptorsNCC(const std::vector<SiftD
     if (set1.empty() || set2.empty()) {
         return matches;
     }
+
+    const float RATIO_THRESH_SQ = 0.64f; // 0.8 * 0.8
+    const size_t MAX_MATCHES = 60;
 
     struct CenteredDescriptor {
         std::vector<float> centered;
@@ -230,15 +299,17 @@ std::vector<MatchPair> SiftDetector::MatchDescriptorsNCC(const std::vector<SiftD
     for (size_t i = 0; i < set1.size(); ++i) prepareCentered(set1[i], centered1[i]);
     for (size_t i = 0; i < set2.size(); ++i) prepareCentered(set2[i], centered2[i]);
 
-    matches.reserve(set1.size());
     for (size_t i = 0; i < set1.size(); ++i) {
         const auto& c1 = centered1[i];
-        float bestCorr = -std::numeric_limits<float>::max();
+        float bestCorr = -1.0f;
+        float secondBestCorr = -1.0f;
         int bestIdx = -1;
+
+        if (c1.centered.empty()) continue;
 
         for (size_t j = 0; j < set2.size(); ++j) {
             const auto& c2 = centered2[j];
-            if (c1.centered.size() != c2.centered.size() || c1.centered.empty()) continue;
+            if (c1.centered.size() != c2.centered.size()) continue;
 
             float corr = -1.0f;
             if (c1.invNorm > 0.0f && c2.invNorm > 0.0f) {
@@ -250,14 +321,31 @@ std::vector<MatchPair> SiftDetector::MatchDescriptorsNCC(const std::vector<SiftD
             }
 
             if (corr > bestCorr) {
+                secondBestCorr = bestCorr;
                 bestCorr = corr;
                 bestIdx = static_cast<int>(j);
+            } else if (corr > secondBestCorr) {
+                secondBestCorr = corr;
             }
         }
 
-        if (bestIdx >= 0) {
+        // Ratio test for NCC: Convert to "distance" metric for standard test
+        // DistSq = 2 - 2*corr
+        float dBestSq = 2.0f - 2.0f * bestCorr;
+        float dSecondBestSq = 2.0f - 2.0f * secondBestCorr;
+        
+        if (bestIdx >= 0 && dBestSq < RATIO_THRESH_SQ * dSecondBestSq) {
             matches.emplace_back(static_cast<int>(i), bestIdx, bestCorr);
         }
+    }
+
+    // Sort by confidence (best correlation first) and limit count
+    std::sort(matches.begin(), matches.end(), [](const MatchPair& a, const MatchPair& b) {
+        return a.score > b.score;
+    });
+
+    if (matches.size() > MAX_MATCHES) {
+        matches.resize(MAX_MATCHES);
     }
 
     return matches;
