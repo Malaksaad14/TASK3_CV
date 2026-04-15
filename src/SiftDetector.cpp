@@ -265,7 +265,7 @@ std::vector<MatchPair> SiftDetector::MatchDescriptorsNCC(const std::vector<SiftD
     }
 
     const float RATIO_THRESH_SQ = 0.64f; // 0.8 * 0.8
-    const size_t MAX_MATCHES = 60;
+    const size_t MAX_MATCHES = 15;
 
     struct CenteredDescriptor {
         std::vector<float> centered;
