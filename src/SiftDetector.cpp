@@ -212,7 +212,7 @@ std::vector<MatchPair> SiftDetector::MatchDescriptorsSSD(const std::vector<SiftD
     }
 
     const float RATIO_THRESH_SQ = 0.36f; // 0.6 * 0.6
-    const size_t MAX_MATCHES = 15;
+    const size_t MAX_MATCHES = 30;
 
     for (size_t i = 0; i < set1.size(); ++i) {
         const auto& d1 = set1[i].descriptor;
@@ -265,7 +265,7 @@ std::vector<MatchPair> SiftDetector::MatchDescriptorsNCC(const std::vector<SiftD
     }
 
     const float RATIO_THRESH_SQ = 0.64f; // 0.8 * 0.8
-    const size_t MAX_MATCHES = 15;
+    const size_t MAX_MATCHES = 30;
 
     struct CenteredDescriptor {
         std::vector<float> centered;
