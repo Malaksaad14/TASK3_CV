@@ -101,11 +101,12 @@ std::vector<KeyPoint> HarrisDetector::DetectLambdaMinus(const Matrix2D& img, flo
         
         float trace = sxx + syy;
         float det = sxx * syy - sxy * sxy;
-        
+        //We derive λ from det(M − λI)=0 → quadratic equation → gives trace and determinant formula(λ-(trace)λ +det=0)
+        // lma bnhl l equation bta3t l eigenvalue bnwsl ll formula de l feha l trace wl det (λ-(trace)λ +det=0) 
         float inner = trace * trace - 4 * det;
         float lambda_min = 0.0f;
         if (inner >= 0.0f) {
-            lambda_min = (trace - std::sqrt(inner)) / 2.0f;
+            lambda_min = (trace - std::sqrt(inner)) / 2.0f; // we b3den ngeb l min eigen value
         }
         
         responseMap.data[i] = lambda_min;
