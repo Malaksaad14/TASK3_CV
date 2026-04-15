@@ -170,7 +170,9 @@ void MainFrame::OnHarrisDetect(wxCommandEvent& event) {
     // Convert wxImage RGB to MathUtils Grayscale natively
     MathUtils::Matrix2D gray = HarrisDetector::ConvertToGrayMatrix(m_originalImage.GetData(), w, h, 3);
     float k = 0.04f;
-    float threshold = m_sldHarrisThreshold->GetValue() * 1000000.0f;  // 1M per unit
+    // hena bnhwl l value mn l slider l threshold  w b3den bnkbrha (ndrb f 1M)
+    float threshold = m_sldHarrisThreshold->GetValue() * 1000000.0f; 
+    //hna bnb3t l THRESHOLD
     std::vector<KeyPoint> keypoints = HarrisDetector::DetectHarris(gray, k, threshold, 0, 5);
     
     auto t2 = std::chrono::high_resolution_clock::now();

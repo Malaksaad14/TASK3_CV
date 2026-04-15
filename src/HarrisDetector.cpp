@@ -21,20 +21,22 @@ Matrix2D HarrisDetector::ConvertToGrayMatrix(const unsigned char* data, int widt
     }
     return gray;
 }
-
+// ahna bnhsb GX and GY w b3den bnhsb Ix^2 w Iy^2 w Ix*Iy
 void HarrisDetector::ComputeGradientsAndProducts(
     const Matrix2D& img,
     Matrix2D& Ix2, Matrix2D& Iy2, Matrix2D& Ixy) {
     
     // Sobel filters are separable:
     // Sobel X = [1, 2, 1]^T * [-1, 0, 1]
+    //da kda l kernel bta3 Sobel x ashan nhsb GX
     std::vector<float> kernelX_h = {-1.0f, 0.0f, 1.0f};
     std::vector<float> kernelX_v = {1.0f, 2.0f, 1.0f};
     
     // Sobel Y = [-1, 0, 1]^T * [1, 2, 1]
+    //da kda l kernel bta3 Sobel y ashan nhsb GY
     std::vector<float> kernelY_h = {1.0f, 2.0f, 1.0f};
     std::vector<float> kernelY_v = {-1.0f, 0.0f, 1.0f};
-    
+    //hna bnhsb Gx w Gy
     Matrix2D Ix = ConvolveSeparable(img, kernelX_h, kernelX_v, PaddingMode::REPLICATE);
     Matrix2D Iy = ConvolveSeparable(img, kernelY_h, kernelY_v, PaddingMode::REPLICATE);
     
@@ -55,16 +57,18 @@ void HarrisDetector::ComputeGradientsAndProducts(
 
 std::vector<KeyPoint> HarrisDetector::DetectHarris(const Matrix2D& img, float k, float threshold, int minPoints, int nmsRadius) {
     Matrix2D Ix2, Iy2, Ixy;
-    ComputeGradientsAndProducts(img, Ix2, Iy2, Ixy);
+    ComputeGradientsAndProducts(img, Ix2, Iy2, Ixy); // b3d ma hsbna IX2, IY2, IXY
     
-    // Apply Gaussian blur (sigma = 1.0)
+    // Apply Gaussian blur (sigma = 1.0) astkhdmna gaussian filter
     std::vector<float> gauss1D = GetGaussianKernel1D(1.0f);
-    Matrix2D Sxx = ConvolveSeparable(Ix2, gauss1D, gauss1D);
-    Matrix2D Syy = ConvolveSeparable(Iy2, gauss1D, gauss1D);
-    Matrix2D Sxy = ConvolveSeparable(Ixy, gauss1D, gauss1D);
+    Matrix2D Sxx = ConvolveSeparable(Ix2, gauss1D, gauss1D); // gaussian filter * IX2 bnfs l tare2a l hsbna beha l GX wl GY
+    Matrix2D Syy = ConvolveSeparable(Iy2, gauss1D, gauss1D); // gaussian filter * IY2
+    Matrix2D Sxy = ConvolveSeparable(Ixy, gauss1D, gauss1D); // gaussian filter * IXY
     
     Matrix2D responseMap(img.width, img.height);
-    
+    // hena bnhsb b2a l det wl trace ashan nhsb l response 
+    // ngeb awl element mn kol matrix w nroh nhsb l det wl trace w b3den ngeb tany element 
+    // lhad ma nkhlshom
     for (int i = 0; i < img.width * img.height; ++i) {
         float sxx = Sxx.data[i];
         float syy = Syy.data[i];
@@ -72,7 +76,8 @@ std::vector<KeyPoint> HarrisDetector::DetectHarris(const Matrix2D& img, float k,
         
         float det = sxx * syy - sxy * sxy;
         float trace = sxx + syy;
-        responseMap.data[i] = det - k * trace * trace;
+        // hna bnhsb l harris response (R) l kol pixel
+        responseMap.data[i] = det - k * trace * trace; 
     }
     
     return NonMaximumSuppression(responseMap, threshold, nmsRadius);
@@ -110,8 +115,10 @@ std::vector<KeyPoint> HarrisDetector::DetectLambdaMinus(const Matrix2D& img, flo
 }
 
 std::vector<KeyPoint> HarrisDetector::NonMaximumSuppression(const Matrix2D& responseMap, float threshold, int radius) {
+    // hena vector hnkhzn feh l points l f3ln corner
     std::vector<KeyPoint> keypoints;
-    
+    // hnmshy 3l image bs hnbd2 mn l centered pixel 
+    // w nshof hal hya akbr mn l neighbors ely 7waleha wala laa
     for (int y = radius; y < responseMap.height - radius; ++y) {
         for (int x = radius; x < responseMap.width - radius; ++x) {
             float val = responseMap.at(x, y);
@@ -136,7 +143,7 @@ std::vector<KeyPoint> HarrisDetector::NonMaximumSuppression(const Matrix2D& resp
         }
     }
     
-    // Sort by response
+    // hnrtb l points hsb l strength  
     std::sort(keypoints.begin(), keypoints.end(), [](const KeyPoint& a, const KeyPoint& b) {
         return a.response > b.response;
     });

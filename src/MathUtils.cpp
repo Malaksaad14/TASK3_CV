@@ -73,32 +73,41 @@ namespace MathUtils {
         
         return kernel;
     }
-
+// btakhod l input(image) wl horizontal kernel wl vertical kernel wl padding mode
     Matrix2D ConvolveSeparable(const Matrix2D& input, const std::vector<float>& hKernel, const std::vector<float>& vKernel, PaddingMode padMode) {
+        //bngeb l dimensions bta3t l image
         int width = input.width;
         int height = input.height;
-        Matrix2D temp(width, height);
-        Matrix2D output(width, height);
 
+        Matrix2D temp(width, height); // de sora mo2kta bnhot feha l nategt l first stage(horizontal)
+        Matrix2D output(width, height); //hena hnhot l final result(vertical +horizontal)
+  // hena bnhsb size l kernel
         int kw = hKernel.size();
         int kh = vKernel.size();
+        // hena bngeb nos l kernel ashan lma negy ngeb l index bta3 l pixel
         int kw_radius = kw / 2;
         int kh_radius = kh / 2;
 
         // Horizontal Pass
-        for (int y = 0; y < height; ++y) {
-            for (int x = 0; x < width; ++x) {
-                float sum = 0.0f;
-                for (int k = 0; k < kw; ++k) {
-                    int ix = x + k - kw_radius;
-                    float val;
+        for (int y = 0; y < height; ++y) { // bnlf 3la kol l rows
+            for (int x = 0; x < width; ++x) { // bnlf 3la kol l columns
+                float sum = 0.0f; // hnkhzn feha l value bta3t l convolution
+                for (int k = 0; k < kw; ++k) { //bnlf 3la elements l kernel
+                    // bnhsb l index bta3 l pixel ely hytdrb fl kernel
+                    int ix = x + k - kw_radius; 
+
+                    float val; // de l hnkhzn feha l value bta3t l pixel (ely hndrbo fl kernel)
+                    // hena bn check lw howa gowa l sora hnkhzno 3ady
                     if (ix >= 0 && ix < width) {
                         val = input.at(ix, y);
+                        // lw laa hn3ml padding (replicate padding)
                     } else if (padMode == PaddingMode::REPLICATE) {
+                        // khod a2rb pixel gowa l sora
                         val = input.at(std::max(0, std::min(ix, width - 1)), y);
-                    } else {
+                    } else { // else(lw mafesh replicate padding hn3ml zero padding)
                         val = 0.0f;
                     }
+            // hena b2a hndrb l value bta3t l pixel fl kernel w ngm3hom
                     sum += val * hKernel[k];
                 }
                 temp.at(x, y) = sum;
@@ -109,11 +118,11 @@ namespace MathUtils {
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
                 float sum = 0.0f;
-                for (int k = 0; k < kh; ++k) {
+                for (int k = 0; k < kh; ++k) { // hnlf 3la l vertical kernel
                     int iy = y + k - kh_radius;
                     float val;
                     if (iy >= 0 && iy < height) {
-                        val = temp.at(x, iy);
+                        val = temp.at(x, iy); // khod mn temp
                     } else if (padMode == PaddingMode::REPLICATE) {
                         val = temp.at(x, std::max(0, std::min(iy, height - 1)));
                     } else {
